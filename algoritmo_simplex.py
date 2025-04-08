@@ -1,15 +1,12 @@
 def ler_arquivo(nome_arquivo="funcao.txt"):
-    """Lê o arquivo e retorna suas linhas."""
     with open(nome_arquivo, "r", encoding="utf-8") as arquivo:
         return [linha.strip() for linha in arquivo.readlines()]
 
 def identificar_tipo_funcao(linha):
-    """Verifica se a função é de maximização ou minimização."""
     return linha.lower().startswith("max")
 
 def extrair_coeficientes(linha):
-    """Extrai os coeficientes da função objetivo."""
-    linha = linha[7:].strip()  # Remove "max z =" ou "min z =" e espaços extras
+    linha = linha[7:].strip()  
     coef = ""
     coeficientes = []
 
@@ -31,23 +28,20 @@ def extrair_coeficientes(linha):
     return coeficientes
 
 def extrair_restricoes(linhas):
-    """Extrai a matriz de coeficientes, o vetor de resultados e adiciona variáveis de folga/excesso."""
     matriz_coef = []
     vetor_resultados = []
     num_variaveis = 0
     num_folga = 0
     restricoes_processadas = []
 
-    for linha in linhas[1:]:  # Pula a função objetivo
+    for linha in linhas[1:]: 
         coef = ""
         restricao = []
         partes = linha.split()
 
-        # Identificar o termo independente (último elemento da equação)
         resultado = int(partes[-1])
         vetor_resultados.append(resultado)
 
-        # Identificar o tipo da restrição
         if ">=" in linha:
             tipo_restricao = ">="
         elif "<=" in linha:
@@ -55,7 +49,6 @@ def extrair_restricoes(linhas):
         else:
             tipo_restricao = "="
 
-        # Processar coeficientes antes do sinal (>=, <=, =)
         for i, elemento in enumerate(linha):
             if elemento == 'x':
                 if coef == '' or coef == '+':
@@ -68,22 +61,22 @@ def extrair_restricoes(linhas):
             if (elemento.isdigit() and (i + 1 < len(linha) and linha[i + 1] == 'x')) or elemento in ['+', '-']:
                 coef += elemento
 
-        num_variaveis = max(num_variaveis, len(restricao))  # Atualiza o número de variáveis
+        num_variaveis = max(num_variaveis, len(restricao)) 
 
-        # Variáveis de folga ou excesso
-        folga = [0] * num_folga  # Mantém folgas anteriores
+
+        folga = [0] * num_folga  
         if tipo_restricao == "<=":
-            folga.append(1)  # Variável de folga positiva
+            folga.append(1) 
         elif tipo_restricao == ">=":
-            folga.append(-1)  # Variável de excesso negativa
+            folga.append(-1)  
         elif tipo_restricao == "=":
-            folga.append(0)  # Sem variável de folga/excesso
+            folga.append(0)  
 
         num_folga += 1
-        restricao.extend(folga)  # Adiciona folgas à restrição
+        restricao.extend(folga) 
         restricoes_processadas.append(restricao)
 
-    # Ajustar o tamanho de cada restrição para garantir alinhamento das colunas
+
     num_total_variaveis = num_variaveis + num_folga
     for restricao in restricoes_processadas:
         while len(restricao) < num_total_variaveis:
@@ -92,15 +85,38 @@ def extrair_restricoes(linhas):
 
     return matriz_coef, vetor_resultados
 
+def laPlace(matriz):
+    nlinhas = len(matriz)
+
+    if nlinhas == 1:
+        return matriz[0][0]
+    if nlinhas == 2:
+        return matriz[0][0]*matriz[1][1] - matriz[0][1]*matriz[1][0]
+    
+    else:
+        det = 0
+        for j in range(nlinhas):
+            menor = matriz_menor(matriz, 0, j)
+            cofator = (-1) ** j * matriz[0][j] * laPlace(menor)
+            det += cofator
+
+    return det
+
+def matriz_menor(matriz, linha_remover, coluna_remover):
+    return [
+        [elemento for j, elemento in enumerate(linha) if j != coluna_remover]
+        for i, linha in enumerate(matriz) if i != linha_remover
+    ]
+
 def main():
     linhas = ler_arquivo()
     
-    tipo_maximizacao = identificar_tipo_funcao(linhas[0])  # Identifica max ou min
-    coef_funcao_objetivo = extrair_coeficientes(linhas[0])  # Coeficientes da função objetivo
-    matriz_restricoes, vetor_resultados = extrair_restricoes(linhas)  # Matriz e resultados
+    tipo_maximizacao = identificar_tipo_funcao(linhas[0])  
+    coef_funcao_objetivo = extrair_coeficientes(linhas[0]) 
+    matriz_restricoes, vetor_resultados = extrair_restricoes(linhas) 
 
     print("Maximizacao:", tipo_maximizacao)
-    print("Coeficientes da Funcao Objetivo:", coef_funcao_objetivo)  # Sem variáveis de folga
+    print("Coeficientes da Funcao Objetivo:", coef_funcao_objetivo)  
     print("Matriz de Coeficientes das Restricowes:")
     for linha in matriz_restricoes:
         print(linha)
