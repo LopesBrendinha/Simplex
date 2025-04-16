@@ -63,18 +63,19 @@ def extrair_restricoes(linhas):
 
         num_variaveis = max(num_variaveis, len(restricao)) 
 
-
         folga = [0] * num_folga  
         if tipo_restricao == "<=":
-            folga.append(1) 
+            folga.append(1)
+            num_folga += 1
         elif tipo_restricao == ">=":
-            folga.append(-1)  
-        elif tipo_restricao == "=":
-            folga.append(0)  
+            folga.append(-1)
+            num_folga += 1
 
-        num_folga += 1
-        restricao.extend(folga) 
+        restricao.extend(folga)
         restricoes_processadas.append(restricao)
+
+
+        num_total_variaveis = num_variaveis + num_folga
 
 
     num_total_variaveis = num_variaveis + num_folga
@@ -108,9 +109,44 @@ def matriz_menor(matriz, linha_remover, coluna_remover):
         for i, linha in enumerate(matriz) if i != linha_remover
     ]
 
+def matriz_ajustada(matriz, n):
+    matrizAjustada = []
+    for i in range(n):
+        linha = []
+        for j in range(n):
+            linha.append(matriz[i][j])
+        matrizAjustada.append(linha)
+    return matrizAjustada
+
+def matriz_inversa(matriz):
+    det = laPlace(matriz)
+    if det == 0:
+        raise ValueError("A matriz não é invertível.")
+
+    n = len(matriz)
+
+    cofatores = []
+    for i in range(n):
+        linha_cof = []
+        for j in range(n):
+            menor = matriz_menor(matriz, i, j)
+            cof = ((-1) ** (i + j)) * laPlace(menor)
+            linha_cof.append(cof)
+        cofatores.append(linha_cof)
+
+
+    adjunta = list(map(list, zip(*cofatores)))
+
+
+    inversa = []
+    for linha in adjunta:
+        inversa.append([elem / det for elem in linha])
+
+    return inversa
+
 def main():
     linhas = ler_arquivo()
-    
+    numR = len(linhas) - 1
     tipo_maximizacao = identificar_tipo_funcao(linhas[0])  
     coef_funcao_objetivo = extrair_coeficientes(linhas[0]) 
     matriz_restricoes, vetor_resultados = extrair_restricoes(linhas) 
@@ -120,7 +156,19 @@ def main():
     print("Matriz de Coeficientes das Restricowes:")
     for linha in matriz_restricoes:
         print(linha)
+
     print("Vetor de Resultados:", vetor_resultados)
+    
+    matriz = matriz_ajustada(matriz_restricoes, numR)
+    for linha in matriz:
+        print(linha)
+
+    print("Determinante: ", laPlace(matriz))
+
+    matriz = matriz_inversa(matriz)
+    for linha in matriz:
+        print(linha)
+
 
 if __name__ == "__main__":
     main()
