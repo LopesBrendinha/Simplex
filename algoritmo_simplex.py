@@ -133,19 +133,30 @@ def matriz_inversa(matriz):
         raise ValueError("A matriz não é invertível.")
 
     n = len(matriz)
+    matriz_corrigida = [linha[:] for linha in matriz] 
+
+    for i in range(n):
+        linha_vazia = all(matriz_corrigida[i][j] == 0 for j in range(n))
+        if linha_vazia:
+            for k in range(i + 1, n):
+                if any(matriz_corrigida[k][j] != 0 for j in range(n)):
+                    matriz_corrigida[i], matriz_corrigida[k] = matriz_corrigida[k], matriz_corrigida[i]
+                    print(f"Aviso: linha {i + 1} trocada com linha {k + 1} para evitar cofatores nulos.")
+                    break
+            else:
+                raise ValueError(f"A matriz possui linha {i + 1} nula, portanto não é invertível.")
+
 
     cofatores = []
     for i in range(n):
         linha_cof = []
         for j in range(n):
-            menor = matriz_menor(matriz, i, j)
+            menor = matriz_menor(matriz_corrigida, i, j)
             cof = ((-1) ** (i + j)) * laPlace(menor)
             linha_cof.append(cof)
         cofatores.append(linha_cof)
 
-
     adjunta = list(map(list, zip(*cofatores)))
-
 
     inversa = []
     for linha in adjunta:
