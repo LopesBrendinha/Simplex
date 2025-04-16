@@ -1,3 +1,4 @@
+
 def ler_arquivo(nome_arquivo="funcao.txt"):
     with open(nome_arquivo, "r", encoding="utf-8") as arquivo:
         return [linha.strip() for linha in arquivo.readlines()]
@@ -30,16 +31,15 @@ def extrair_coeficientes(linha):
 def extrair_restricoes(linhas):
     matriz_coef = []
     vetor_resultados = []
-    num_variaveis = 0
     num_folga = 0
     restricoes_processadas = []
+    num_variaveis_max = 0
 
-    for linha in linhas[1:]: 
+    for linha in linhas[1:]:
         coef = ""
-        restricao = []
+        restricao_temp = {}
         partes = linha.split()
-
-        resultado = int(partes[-1])
+        resultado = float(partes[-1])
         vetor_resultados.append(resultado)
 
         if ">=" in linha:
@@ -49,42 +49,51 @@ def extrair_restricoes(linhas):
         else:
             tipo_restricao = "="
 
-        for i, elemento in enumerate(linha):
-            if elemento == 'x':
+        i = 0
+        while i < len(linha):
+            if linha[i].isdigit() or linha[i] in ['+', '-', '.']:
+                coef += linha[i]
+            elif linha[i] == 'x':
+                # Coeficiente padrão
                 if coef == '' or coef == '+':
                     coef = '1'
                 elif coef == '-':
                     coef = '-1'
-                restricao.append(int(coef))
+                j = i + 1
+                var_index = ""
+                while j < len(linha) and linha[j].isdigit():
+                    var_index += linha[j]
+                    j += 1
+                var_index = int(var_index) - 1  # x1 vira índice 0
+                restricao_temp[var_index] = float(coef)
+                num_variaveis_max = max(num_variaveis_max, var_index + 1)
                 coef = ""
+                i = j - 1
+            i += 1
 
-            if (elemento.isdigit() and (i + 1 < len(linha) and linha[i + 1] == 'x')) or elemento in ['+', '-']:
-                coef += elemento
+        restricao = [0.0] * num_variaveis_max
+        for idx, valor in restricao_temp.items():
+            restricao[idx] = valor
 
-        num_variaveis = max(num_variaveis, len(restricao)) 
-
-        folga = [0] * num_folga  
+        folga = [0.0] * num_folga
         if tipo_restricao == "<=":
-            folga.append(1)
+            folga.append(1.0)
             num_folga += 1
         elif tipo_restricao == ">=":
-            folga.append(-1)
+            folga.append(-1.0)
             num_folga += 1
 
         restricao.extend(folga)
         restricoes_processadas.append(restricao)
 
-
-        num_total_variaveis = num_variaveis + num_folga
-
-
-    num_total_variaveis = num_variaveis + num_folga
+    num_total_variaveis = num_variaveis_max + num_folga
     for restricao in restricoes_processadas:
         while len(restricao) < num_total_variaveis:
-            restricao.append(0)
+            restricao.append(0.0)
         matriz_coef.append(restricao)
 
     return matriz_coef, vetor_resultados
+
 
 def laPlace(matriz):
     nlinhas = len(matriz)
