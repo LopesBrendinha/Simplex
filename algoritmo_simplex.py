@@ -14,17 +14,18 @@ def extrair_coeficientes(linha):
     for i, elemento in enumerate(linha):
         if elemento == 'x':
             if coef == '' or coef == '+':
-                coef = '1'
+                coef = '1.0'
             elif coef == '-':
-                coef = '-1'
-            coeficientes.append(int(coef))
+                coef = '-1.0'
+            coeficientes.append(float(coef))  
             coef = ""
 
-        if (elemento.isdigit() and (i + 1 < len(linha) and linha[i + 1] == 'x')) or elemento in ['+', '-']:
+        if (elemento.isdigit() or elemento == '.') or (elemento in ['+', '-'] and (i + 1 < len(linha) and (linha[i+1].isdigit() or linha[i+1] == '.'))):
             coef += elemento
 
+
     if coef:
-        coeficientes.append(int(coef))
+        coeficientes.append(float(coef))
 
     return coeficientes
 
@@ -54,7 +55,6 @@ def extrair_restricoes(linhas):
             if linha[i].isdigit() or linha[i] in ['+', '-', '.']:
                 coef += linha[i]
             elif linha[i] == 'x':
-                # Coeficiente padrão
                 if coef == '' or coef == '+':
                     coef = '1'
                 elif coef == '-':
@@ -64,7 +64,7 @@ def extrair_restricoes(linhas):
                 while j < len(linha) and linha[j].isdigit():
                     var_index += linha[j]
                     j += 1
-                var_index = int(var_index) - 1  # x1 vira índice 0
+                var_index = int(var_index) - 1  
                 restricao_temp[var_index] = float(coef)
                 num_variaveis_max = max(num_variaveis_max, var_index + 1)
                 coef = ""
@@ -164,6 +164,26 @@ def matriz_inversa(matriz):
 
     return inversa
 
+def multiplicar_matrizes(matriz_a, matriz_b):
+    colunas_a = len(matriz_a[0]) if matriz_a else 0
+    linhas_b = len(matriz_b)
+    
+    if colunas_a != linhas_b:
+        raise ValueError("Número de colunas da primeira matriz deve ser igual ao número de linhas da segunda matriz")
+    
+    linhas_a = len(matriz_a)
+    colunas_b = len(matriz_b[0]) if matriz_b else 0
+    resultado = [[0.0 for _ in range(colunas_b)] for _ in range(linhas_a)]
+    
+    for i in range(linhas_a):
+        for j in range(colunas_b):
+            soma = 0.0
+            for k in range(colunas_a):
+                soma += matriz_a[i][k] * matriz_b[k][j]
+            resultado[i][j] = soma
+    
+    return resultado
+
 def main():
     linhas = ler_arquivo()
     numR = len(linhas) - 1
@@ -188,7 +208,8 @@ def main():
     matriz = matriz_inversa(matriz)
     for linha in matriz:
         print(linha)
-
+    
+    
 
 if __name__ == "__main__":
     main()
