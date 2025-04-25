@@ -1,3 +1,4 @@
+import random
 
 def ler_arquivo(nome_arquivo="funcao.txt"):
     with open(nome_arquivo, "r", encoding="utf-8") as arquivo:
@@ -7,26 +8,33 @@ def identificar_tipo_funcao(linha):
     return linha.lower().startswith("max")
 
 def extrair_coeficientes(linha):
-    linha = linha[7:].strip()  
+    linha = linha[7:].strip()  # Remove "max z =" ou similar
     coef = ""
     coeficientes = []
-
-    for i, elemento in enumerate(linha):
-        if elemento == 'x':
+    i = 0
+    n = len(linha)
+    
+    while i < n:
+        if linha[i] == 'x':
             if coef == '' or coef == '+':
                 coef = '1.0'
             elif coef == '-':
                 coef = '-1.0'
-            coeficientes.append(float(coef))  
+            coeficientes.append(float(coef))
             coef = ""
 
-        if (elemento.isdigit() or elemento == '.') or (elemento in ['+', '-'] and (i + 1 < len(linha) and (linha[i+1].isdigit() or linha[i+1] == '.'))):
-            coef += elemento
+            i += 1
+            while i < n and linha[i].isdigit():
+                i += 1
+            continue
 
-
-    if coef:
-        coeficientes.append(float(coef))
-
+        if (linha[i].isdigit() or linha[i] == '.') or \
+           (linha[i] in ['+', '-'] and (i + 1 < n and (linha[i+1].isdigit() or linha[i+1] == '.'))):
+            coef += linha[i]
+            i += 1
+        else:
+            i += 1
+    
     return coeficientes
 
 def extrair_restricoes(linhas):
@@ -169,7 +177,7 @@ def multiplicar_matrizes(matriz_a, matriz_b):
     linhas_b = len(matriz_b)
     
     if colunas_a != linhas_b:
-        raise ValueError("Número de colunas da primeira matriz deve ser igual ao número de linhas da segunda matriz")
+        raise ValueError("Numero de colunas da primeira matriz deve ser igual ao numero de linhas da segunda matriz")
     
     linhas_a = len(matriz_a)
     colunas_b = len(matriz_b[0]) if matriz_b else 0
@@ -191,9 +199,11 @@ def main():
     coef_funcao_objetivo = extrair_coeficientes(linhas[0]) 
     matriz_restricoes, vetor_resultados = extrair_restricoes(linhas) 
 
+
+    print(numR)
     print("Maximizacao:", tipo_maximizacao)
     print("Coeficientes da Funcao Objetivo:", coef_funcao_objetivo)  
-    print("Matriz de Coeficientes das Restricowes:")
+    print("Matriz de Coeficientes das Restricos:")
     for linha in matriz_restricoes:
         print(linha)
 
@@ -209,7 +219,72 @@ def main():
     for linha in matriz:
         print(linha)
     
+def simplex():
+    linhas = ler_arquivo()
+    numR = len(linhas) - 1
+    tipo_maximizacao = identificar_tipo_funcao(linhas[0])  
+    matriz_C = extrair_coeficientes(linhas[0]) 
+    matriz_A, matriz_b = extrair_restricoes(linhas) 
+    tam_matriz_A = len(matriz_A[0])
+    
+    matriz_nao_basica = []
+    matriz_basica = []
+    conjunto_basico = set()
+
+    while True:
+        vetor_basico = random.sample(range(tam_matriz_A), numR)
+        print("Tentando vetor basico:", vetor_basico)
+        
+        while tuple(sorted(vetor_basico)) in conjunto_basico:
+            vetor_basico = random.sample(range(tam_matriz_A), numR)
+        
+        matriz_basica = []
+        for i in range(numR):  
+            linha = []
+            for j in vetor_basico:  
+                linha.append(matriz_A[i][j])
+            matriz_basica.append(linha)
+        
+        print("Matriz basica construida:")
+        for linha in matriz_basica:
+            print(linha)
+        
+        try:
+            resultado = laPlace(matriz_basica)
+            print("Determinante:", resultado)
+            
+            if abs(resultado) != 0:
+                break
+            else:
+                conjunto_basico.add(tuple(sorted(vetor_basico)))
+        except Exception as e:
+            print("Erro no cálculo do determinante:", e)
+            conjunto_basico.add(tuple(sorted(vetor_basico)))
+            continue
+
+    vetor_nao_basico = []
+    for i in range(tam_matriz_A):
+        if i not in vetor_basico:
+            vetor_nao_basico.append(i)  
+
+    matriz_nao_basica = []
+    for i in range(numR):  
+        linha = []
+        for j in vetor_nao_basico:  
+            linha.append(matriz_A[i][j])
+        matriz_nao_basica.append(linha)
+
+    print("\nVetor basico final:", vetor_basico)
+    print("Matriz basica final:")
+    for linha in matriz_basica:
+        print(linha)
+    
+    print("\nVetor nao-basico final:", vetor_nao_basico)
+    print("Matriz nao-basica final:")
+    for linha in matriz_nao_basica:
+        print(linha)
+
     
 
 if __name__ == "__main__":
-    main()
+    simplex()
