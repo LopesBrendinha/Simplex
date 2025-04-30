@@ -8,7 +8,7 @@ def identificar_tipo_funcao(linha):
     return linha.lower().startswith("max")
 
 def extrair_coeficientes(linha):
-    linha = linha[7:].strip()  # Remove "max z =" ou similar
+    linha = linha[7:].strip()  
     coef = ""
     coeficientes = []
     i = 0
@@ -192,6 +192,9 @@ def multiplicar_matrizes(matriz_a, matriz_b):
     
     return resultado
 
+def matriz_transposta(matriz):
+    return [list(coluna) for coluna in zip(*matriz)]
+
 def main():
     linhas = ler_arquivo()
     numR = len(linhas) - 1
@@ -226,10 +229,18 @@ def simplex():
     matriz_C = extrair_coeficientes(linhas[0]) 
     matriz_A, matriz_b = extrair_restricoes(linhas) 
     tam_matriz_A = len(matriz_A[0])
+    x_b = []
+    x_nb = []
+
+    print("Matriz:")
+    for linha in matriz_A:
+        print(linha)
     
     matriz_nao_basica = []
     matriz_basica = []
     conjunto_basico = set()
+    matriz_C_basica =[]
+    matriz_C_nao_basica = [] 
 
     while True:
         vetor_basico = random.sample(range(tam_matriz_A), numR)
@@ -258,7 +269,7 @@ def simplex():
             else:
                 conjunto_basico.add(tuple(sorted(vetor_basico)))
         except Exception as e:
-            print("Erro no cálculo do determinante:", e)
+            print("Erro no calculo do determinante:", e)
             conjunto_basico.add(tuple(sorted(vetor_basico)))
             continue
 
@@ -274,6 +285,11 @@ def simplex():
             linha.append(matriz_A[i][j])
         matriz_nao_basica.append(linha)
 
+    matriz_C_basica = [matriz_C[j] if j < len(matriz_C) else 0 for j in vetor_basico]
+    matriz_C_nao_basica = [matriz_C[j] if j < len(matriz_C) else 0 for j in vetor_nao_basico]
+
+
+
     print("\nVetor basico final:", vetor_basico)
     print("Matriz basica final:")
     for linha in matriz_basica:
@@ -283,6 +299,17 @@ def simplex():
     print("Matriz nao-basica final:")
     for linha in matriz_nao_basica:
         print(linha)
+
+    print("\nCusto basico (c_B):", matriz_C_basica)
+    print("Custo nao basico (c_N):", matriz_C_nao_basica)
+
+    while True:
+        x_b = multiplicar_matrizes(matriz_transposta(matriz_basica), matriz_b)
+        x_nb = [0] * len(matriz_nao_basica[0])
+
+        lamb_T = multiplicar_matrizes(matriz_transposta(matriz_C_basica), matriz_transposta(matriz_A))
+
+
 
     
 
