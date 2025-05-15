@@ -222,26 +222,24 @@ def main():
     for linha in matriz:
         print(linha)
     
-def simplex():
+
+
+def fase2():
     linhas = ler_arquivo()
     numR = len(linhas) - 1
-    tipo_maximizacao = identificar_tipo_funcao(linhas[0])  
-    matriz_C = extrair_coeficientes(linhas[0]) 
+    coef_originais = extrair_coeficientes(linhas[0]) 
     matriz_A, matriz_b = extrair_restricoes(linhas) 
-    tam_matriz_A = len(matriz_A[0])
-    x_b = []
-    x_nb = []
-
-    print("Matriz:")
-    for linha in matriz_A:
-        print(linha)
+    tam_matriz_A = len(matriz_A[0]) 
     
-    matriz_nao_basica = []
-    matriz_basica = []
-    conjunto_basico = set()
-    matriz_C_basica =[]
-    matriz_C_nao_basica = [] 
 
+    num_var_originais = len(coef_originais)
+    num_folgas = tam_matriz_A - num_var_originais
+    matriz_C = coef_originais + [0.0] * num_folgas  
+
+    conjunto_basico = set() 
+    iteracao = 1
+
+    # Seleção aleatória da base inicial 
     while True:
         vetor_basico = random.sample(range(tam_matriz_A), numR)
         print("Tentando vetor basico:", vetor_basico)
@@ -261,57 +259,87 @@ def simplex():
             print(linha)
         
         try:
-            resultado = laPlace(matriz_basica)
-            print("Determinante:", resultado)
+            det = laPlace(matriz_basica)
+            print("Determinante:", det)
             
-            if abs(resultado) != 0:
+            if abs(det) > 1e-10:  
                 break
             else:
                 conjunto_basico.add(tuple(sorted(vetor_basico)))
         except Exception as e:
-            print("Erro no calculo do determinante:", e)
+            print("Erro no cálculo do determinante:", e)
             conjunto_basico.add(tuple(sorted(vetor_basico)))
             continue
 
-    vetor_nao_basico = []
-    for i in range(tam_matriz_A):
-        if i not in vetor_basico:
-            vetor_nao_basico.append(i)  
-
-    matriz_nao_basica = []
-    for i in range(numR):  
-        linha = []
-        for j in vetor_nao_basico:  
-            linha.append(matriz_A[i][j])
-        matriz_nao_basica.append(linha)
-
-    matriz_C_basica = [matriz_C[j] if j < len(matriz_C) else 0 for j in vetor_basico]
-    matriz_C_nao_basica = [matriz_C[j] if j < len(matriz_C) else 0 for j in vetor_nao_basico]
-
-
-
-    print("\nVetor basico final:", vetor_basico)
-    print("Matriz basica final:")
-    for linha in matriz_basica:
-        print(linha)
-    
-    print("\nVetor nao-basico final:", vetor_nao_basico)
-    print("Matriz nao-basica final:")
-    for linha in matriz_nao_basica:
-        print(linha)
-
-    print("\nCusto basico (c_B):", matriz_C_basica)
-    print("Custo nao basico (c_N):", matriz_C_nao_basica)
+    vetor_nao_basico = [j for j in range(tam_matriz_A) if j not in vetor_basico]
 
     while True:
-        x_b = multiplicar_matrizes(matriz_transposta(matriz_basica), matriz_b)
-        x_nb = [0] * len(matriz_nao_basica[0])
+        print(f"\n--- Iteração {iteracao} ---")
+        print("Variáveis básicas:", vetor_basico)
+        print("Variáveis não-básicas:", vetor_nao_basico)
 
-        lamb_T = multiplicar_matrizes(matriz_transposta(matriz_C_basica), matriz_transposta(matriz_A))
-
-
+        # Passo 1: (x_B = B^{-1} * b)
+        B_inv = matriz_inversa(matriz_basica)
+        x_B = multiplicar_matrizes(B_inv, [[bi] for bi in matriz_b])
+        x_N = [0.0] * len(vetor_nao_basico)  
 
     
+        # Passo 2
+        # 2.1:  λ^T = c_B^T * B^{-1}
+        c_B = [matriz_C[j] for j in vetor_basico]
+        lambda_T = multiplicar_matrizes([c_B], B_inv)
+
+        # 2.2: r_N = c_N - λ^T * N
+        N = [[matriz_A[i][j] for j in vetor_nao_basico] for i in range(numR)]
+        c_N = [matriz_C[j] for j in vetor_nao_basico]
+        r_N = []
+        for j in range(len(vetor_nao_basico)):
+            a_Nj = [N[i][j] for i in range(numR)]  
+            r_j = c_N[j] - multiplicar_matrizes(lambda_T, [[x] for x in a_Nj])[0][0]
+            r_N.append(r_j)
+
+        print("Custos relativos (r_N):", r_N)
+
+        # 2.3: 
+        k = r_N.index(min(r_N))
+        entra = vetor_nao_basico[k]
+        print(f"Variável que entra: x{entra + 1}")
+
+        # Passo 3
+        if min(r_N) >= 0:
+            print("Solução ótima encontrada!")
+            break
+
+        # Passo 4: y = B^{-1} * a_entra
+        a_entra = [matriz_A[i][entra] for i in range(numR)]
+        y = multiplicar_matrizes(B_inv, [[yi] for yi in a_entra])
+
+        # Passo 5: 
+        theta_min = float('inf')
+        sai_idx = None
+        for i in range(numR):
+            if y[i][0] > 0:
+                theta = x_B[i][0] / y[i][0]
+                if theta < theta_min:
+                    theta_min = theta
+                    sai_idx = i
+
+        if sai_idx is None:
+            print("Problema ilimitado!")
+            break
+
+        sai = vetor_basico[sai_idx]
+        print(f"Variável que sai: x{sai + 1}")
+
+        # Passo 6 
+        vetor_basico[sai_idx] = entra
+        vetor_nao_basico[k] = sai
+        matriz_basica = [[matriz_A[i][j] for j in vetor_basico] for i in range(numR)]
+        iteracao += 1
+
+    print("\n--- Fim da Fase 2 ---")
+
+  
 
 if __name__ == "__main__":
-    simplex()
+    fase2()
