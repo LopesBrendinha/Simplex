@@ -195,34 +195,101 @@ def multiplicar_matrizes(matriz_a, matriz_b):
 def matriz_transposta(matriz):
     return [list(coluna) for coluna in zip(*matriz)]
 
-def main():
+    
+def fase1():
     linhas = ler_arquivo()
     numR = len(linhas) - 1
-    tipo_maximizacao = identificar_tipo_funcao(linhas[0])  
-    coef_funcao_objetivo = extrair_coeficientes(linhas[0]) 
-    matriz_restricoes, vetor_resultados = extrair_restricoes(linhas) 
+    coef_originais = extrair_coeficientes(linhas[0])
+    matriz_A, matriz_b = extrair_restricoes(linhas)
+    tam_matriz_A = len(matriz_A[0])
 
+    # Passo 1: (custo 0 para originais, 1 para artificiais)
+    matriz_C = [0.0] * tam_matriz_A + [1.0] * numR
 
-    print(numR)
-    print("Maximizacao:", tipo_maximizacao)
-    print("Coeficientes da Funcao Objetivo:", coef_funcao_objetivo)  
-    print("Matriz de Coeficientes das Restricos:")
-    for linha in matriz_restricoes:
-        print(linha)
+    # Adicionar colunas das variáveis artificiais à matriz A
+    for i in range(numR):
+        matriz_A[i] += [1.0 if j == i else 0.0 for j in range(numR)]
 
-    print("Vetor de Resultados:", vetor_resultados)
-    
-    matriz = matriz_ajustada(matriz_restricoes, numR)
-    for linha in matriz:
-        print(linha)
+    # Base inicial: variáveis artificiais (últimas colunas)
+    vetor_basico = list(range(tam_matriz_A, tam_matriz_A + numR))
+    vetor_nao_basico = [j for j in range(tam_matriz_A + numR) if j not in vetor_basico]
 
-    print("Determinante: ", laPlace(matriz))
+    iteracao = 1
+    while True:
+        print(f"\n--- Iteração {iteracao} (Fase 1) ---")
+        print("Variáveis básicas:", vetor_basico)
+        print("Variáveis não-básicas:", vetor_nao_basico)
 
-    matriz = matriz_inversa(matriz)
-    for linha in matriz:
-        print(linha)
-    
+        # Passo 1: Calcular x_B = B^{-1} * b
+        matriz_basica = []
+        for i in range(numR):
+            linha = []
+            for j in vetor_basico:
+                linha.append(matriz_A[i][j])
+            matriz_basica.append(linha)
+        
+        try:
+            B_inv = matriz_inversa(matriz_basica)
+            x_B = multiplicar_matrizes(B_inv, [[bi] for bi in matriz_b])
+        except Exception as e:
+            print("Erro na inversão:", e)
+            return None
 
+        # Passo 2: Calcular custos relativos
+        c_B = [matriz_C[j] for j in vetor_basico]
+        lambda_T = multiplicar_matrizes([c_B], B_inv)
+
+        N = [[matriz_A[i][j] for j in vetor_nao_basico] for i in range(numR)]
+        c_N = [matriz_C[j] for j in vetor_nao_basico]
+        r_N = []
+        for j in range(len(vetor_nao_basico)):
+            a_Nj = [N[i][j] for i in range(numR)]
+            r_j = c_N[j] - multiplicar_matrizes(lambda_T, [[x] for x in a_Nj])[0][0]
+            r_N.append(r_j)
+
+        print("Custos relativos (r_N):", r_N)
+
+        # Passo 3: Teste de otimalidade
+        if min(r_N) >= -1e-10:  
+            print("Solução ótima da Fase 1 encontrada!")
+            # Verifica se há variáveis artificiais na base
+            if any(b >= tam_matriz_A for b in vetor_basico):
+                print("Problema infactível!")
+                return None
+            else:
+                # Remove colunas artificiais e retorna base viável
+                return vetor_basico, matriz_A[:numR][:tam_matriz_A], matriz_b, coef_originais
+
+        # Passo 4: Variável que entra (menor custo relativo)
+        k = r_N.index(min(r_N))
+        entra = vetor_nao_basico[k]
+        print(f"Variável que entra: x{entra + 1}")
+
+        # Passo 5: Direção simplex
+        a_entra = [matriz_A[i][entra] for i in range(numR)]
+        y = multiplicar_matrizes(B_inv, [[yi] for yi in a_entra])
+
+        # Passo 6: Variável que sai (razão mínima)
+        theta_min = float('inf')
+        sai_idx = None
+        for i in range(numR):
+            if y[i][0] > 1e-10:  # y_i > 0
+                theta = x_B[i][0] / y[i][0]
+                if theta < theta_min:
+                    theta_min = theta
+                    sai_idx = i
+
+        if sai_idx is None:
+            print("Problema ilimitado na Fase 1!")
+            return None
+
+        sai = vetor_basico[sai_idx]
+        print(f"Variável que sai: x{sai + 1}")
+
+        # Atualização da base
+        vetor_basico[sai_idx] = entra
+        vetor_nao_basico[k] = sai
+        iteracao += 1
 
 def fase2():
     linhas = ler_arquivo()
@@ -339,7 +406,15 @@ def fase2():
 
     print("\n--- Fim da Fase 2 ---")
 
-  
+def main():
+    # Chamada completa das duas fases
+    resultado_fase1 = fase1()
+    if resultado_fase1 is None:
+        print("Problema infactível ou erro na Fase 1")
+    else:
+        base_viavel, A, b, c = resultado_fase1
+        print("Base viável encontrada:", base_viavel)
+    
 
 if __name__ == "__main__":
     fase2()
