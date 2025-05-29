@@ -45,12 +45,18 @@ def extrair_restricoes(linhas):
     num_variaveis_max = 0
 
     for linha in linhas[1:]:
-        linha = linha.strip()
-        if not linha:
-            continue
+        linha = linha.strip()  # Remove espaços em branco no início e no final
+        if not linha:  # Verifica se a linha está vazia
+            continue  # Ignora linhas vazias
 
+        coef = ""
+        restricao_temp = {}
         partes = linha.split()
-        resultado = float(partes[-1])
+        
+        if len(partes) < 1:  # Verifica se partes tem elementos
+            continue  # Ignora linhas que não têm elementos
+
+        resultado = float(partes[-1])  # Último elemento é o resultado
         vetor_resultados.append(resultado)
 
         if ">=" in linha:
@@ -59,10 +65,7 @@ def extrair_restricoes(linhas):
             tipo_restricao = "<="
         else:
             tipo_restricao = "="
-            
 
-        coef = ""
-        restricao_temp = {}
         i = 0
         while i < len(linha):
             if linha[i].isdigit() or linha[i] in ['+', '-', '.']:
@@ -72,42 +75,33 @@ def extrair_restricoes(linhas):
                     coef = '1'
                 elif coef == '-':
                     coef = '-1'
-                j = i +1 
+                j = i + 1
                 var_index = ""
                 while j < len(linha) and linha[j].isdigit():
                     var_index += linha[j]
-                    j +=1
-                var_index = int(var_index) -1
+                    j += 1
+                var_index = int(var_index) - 1  
                 restricao_temp[var_index] = float(coef)
-                num_variaveis_max = max(num_variaveis_max, var_index +1)
+                num_variaveis_max = max(num_variaveis_max, var_index + 1)
                 coef = ""
-                i = j-1
-            i +=1
+                i = j - 1
+            i += 1
 
         restricao = [0.0] * num_variaveis_max
-        for idx2, val in restricao_temp.items():
-            restricao[idx2] = val
+        for idx, valor in restricao_temp.items():
+            restricao[idx] = valor
 
         folga = [0.0] * num_folga
         if tipo_restricao == "<=":
-            restricao += [1.0]  # Variável de folga positiva
+            folga.append(1.0)
             num_folga += 1
         elif tipo_restricao == ">=":
-            restricao += [-1.0]  # Variável de excesso negativa
+            folga.append(-1.0)
             num_folga += 1
 
-     
         restricao.extend(folga)
         restricoes_processadas.append(restricao)
 
-    # Aqui acrescenta linhas vazias para totalizar as linhas esperadas (numR)
-    numR = len(linhas) - 1
-    while len(restricoes_processadas) < numR:
-        restricoes_processadas.append([0.0] * (num_variaveis_max + num_folga))
-        vetor_resultados.append(0.0)
-        print(f"Ajustando matriz_A com linha vazia na posição {len(restricoes_processadas)}")
-
-    # Ajustar comprimento das linhas para igualar o total de variáveis (num_variaveis_max + num_folga)
     num_total_variaveis = num_variaveis_max + num_folga
     for restricao in restricoes_processadas:
         while len(restricao) < num_total_variaveis:
@@ -222,9 +216,10 @@ def fase1():
     tam_matriz_A = len(matriz_A[0]) if matriz_A else 0  # Variáveis originais + folgas
     num_folgas = tam_matriz_A - num_var_originais
 
-
+    # --------------------------------------------------------------------------
+    # CORREÇÃO CRÍTICA: Vetor de custos completo (originais + folgas + artificiais)
     matriz_C = [0.0] * num_var_originais + [0.0] * num_folgas + [1.0] * numR
-    
+    # --------------------------------------------------------------------------
 
     # Adicionar colunas artificiais à matriz A
     for i in range(numR):
@@ -248,11 +243,7 @@ def fase1():
         for i in range(numR):
             linha = []
             for j in vetor_basico:
-                if j < len(matriz_A[i]):
-                    linha.append(matriz_A[i][j])
-                else:
-                    print(f"Aviso: índice {j} fora do alcance para linha {i} em matriz_A.")
-                    linha.append(0.0)
+                linha.append(matriz_A[i][j])
             matriz_basica.append(linha)
 
         try:
@@ -266,17 +257,7 @@ def fase1():
         c_B = [matriz_C[j] for j in vetor_basico]
         lambda_T = multiplicar_matrizes([c_B], B_inv)
 
-        N = []
-        for i in range(numR):
-            linha_N = []
-            for j in vetor_nao_basico:
-                if j < len(matriz_A[i]):
-                    linha_N.append(matriz_A[i][j])
-                else:
-                    print(f"Aviso: índice {j} fora do alcance para linha {i} em matriz_A.")
-                    linha_N.append(0.0)
-            N.append(linha_N)
-
+        N = [[matriz_A[i][j] for j in vetor_nao_basico] for i in range(numR)]
         r_N = []
         for j in range(len(vetor_nao_basico)):
             a_Nj = [N[i][j] for i in range(numR)]
@@ -312,7 +293,7 @@ def fase1():
         print(f"Variável que entra na base: x{entra + 1}")
 
         # Passo 5: Direção simplex
-        a_entra = [matriz_A[i][entra] if entra < len(matriz_A[i]) else 0.0 for i in range(numR)]
+        a_entra = [matriz_A[i][entra] for i in range(numR)]
         y = multiplicar_matrizes(B_inv, [[yi] for yi in a_entra])
 
         # Passo 6: Variável que sai (razão mínima)
@@ -336,6 +317,7 @@ def fase1():
         iteracao += 1
 
 
+
 def fase2(base_inicial, matriz_A, matriz_b, matriz_C):
     # Validação inicial
     if len(matriz_C) != len(matriz_A[0]):
@@ -347,20 +329,11 @@ def fase2(base_inicial, matriz_A, matriz_b, matriz_C):
     vetor_nao_basico = [j for j in range(len(matriz_A[0])) if j not in vetor_basico]
 
     while True:
-        print(f"\n--- Iteração {iteracao} ---")
+        print(f"\\n--- Iteração {iteracao} ---")
         print("Base:", vetor_basico)
 
         # Passo 1: Solução básica
-        matriz_basica = []
-        for i in range(numR):
-            linha = []
-            for j in vetor_basico:
-                if j < len(matriz_A[i]):
-                    linha.append(matriz_A[i][j])
-                else:
-                    print(f"Aviso: índice {j} fora do alcance para linha {i} em matriz_A.")
-                    linha.append(0.0)
-            matriz_basica.append(linha)
+        matriz_basica = [[matriz_A[i][j] for j in vetor_basico] for i in range(numR)]
         try:
             B_inv = matriz_inversa(matriz_basica)
             x_B = multiplicar_matrizes(B_inv, [[bi] for bi in matriz_b])
@@ -374,17 +347,9 @@ def fase2(base_inicial, matriz_A, matriz_b, matriz_C):
         
         r_N = []
         for j in vetor_nao_basico:
-            coluna_j = [[matriz_A[i][j]] if j < len(matriz_A[i]) else [0.0] for i in range(numR)]
-            # Flatten coluna_j since above is list of lists
-            coluna_j = [[matriz_A[i][j]] if j < len(matriz_A[i]) else [0.0] for i in range(numR)]
-            # Each element inside is a list with one element, fix that
-            coluna_j = [[matriz_A[i][j]] if j < len(matriz_A[i]) else [0.0] for i in range(numR)]
-            coluna_j = [[matriz_A[i][j]] if j < len(matriz_A[i]) else [0.0] for i in range(numR)]
-            # Correct: create a list of lists [[val], [val], ...]
-            coluna_j = [[matriz_A[i][j]] if j < len(matriz_A[i]) else [0.0] for i in range(numR)]
-
-            r_j = matriz_C[j] - multiplicar_matrizes(lambda_T, coluna_j)[0][0]
-            r_N.append(r_j)
+            coluna_j = [[matriz_A[i][j]] for i in range(numR)]
+            produto = multiplicar_matrizes(lambda_T, coluna_j)[0][0]
+            r_N.append(matriz_C[j] - produto)
 
         print("Custos relativos (r_N):", [round(r, 6) for r in r_N])
 
@@ -402,8 +367,7 @@ def fase2(base_inicial, matriz_A, matriz_b, matriz_C):
         entra = vetor_nao_basico[k]
 
         # Passo 5: Direção simplex
-        a_entra = [matriz_A[i][entra] if entra < len(matriz_A[i]) else 0.0 for i in range(numR)]
-        y = multiplicar_matrizes(B_inv, [[matriz_A[i][entra]] if entra < len(matriz_A[i]) else [0.0] for i in range(numR)])
+        y = multiplicar_matrizes(B_inv, [[matriz_A[i][entra]] for i in range(numR)])
 
         # Passo 6: Variável que sai
         theta_min = float('inf')
@@ -425,10 +389,8 @@ def fase2(base_inicial, matriz_A, matriz_b, matriz_C):
         vetor_nao_basico[k] = sai
         iteracao += 1
 
+
 def main():
-    extrair_coeficientes
-
-
     resultado_fase1 = fase1()
     if resultado_fase1 is None:
         print("Problema infactível na Fase 1")
@@ -447,4 +409,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
